@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b0b0d">
+<title>JM Diário</title>
+<style>
+:root{color-scheme:dark;--line:#29292f;--red:#e32636;--muted:#a1a1aa;--white:#f7f7f8}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#241014 0,#09090b 42%);color:var(--white);font:15px system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+header{padding:22px 18px;border-bottom:1px solid var(--line);background:#09090be8;position:sticky;top:0;z-index:2}
+.wrap{width:min(900px,100%);margin:auto}.brand{font-weight:900;letter-spacing:2px;font-size:22px}.brand span{color:var(--red)}.sub{color:var(--muted);font-size:12px;margin-top:3px}
+main{padding:24px 16px 60px}.panel{background:#141417ef;border:1px solid var(--line);border-radius:16px;padding:18px;margin:0 0 16px;box-shadow:0 12px 35px #0005}
+h1{font-size:25px;margin:0 0 8px}h2{font-size:18px;margin:0 0 14px}.muted{color:var(--muted)}.small{font-size:12px;color:var(--muted)}
+input,textarea{width:100%;padding:13px 14px;background:#09090c;border:1px solid #34343b;border-radius:10px;color:white;font:inherit;margin:6px 0 12px}textarea{min-height:90px;resize:vertical}label{font-size:13px;color:#d4d4d8}
+button{border:0;border-radius:10px;background:var(--red);color:white;font-weight:750;padding:12px 16px;font-size:14px;cursor:pointer}button.secondary{background:#29292f}.row{display:flex;gap:9px;flex-wrap:wrap}.row>*{flex:1}.hidden{display:none!important}
+.diary{border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:10px;background:#101013}.diary strong{font-size:16px}.pill{display:inline-block;border-radius:30px;padding:4px 9px;background:#29292f;color:#ddd;font-size:11px;margin:5px 0}.player{display:flex;justify-content:space-between;gap:10px;align-items:center;border-bottom:1px solid var(--line);padding:9px 0}.player:last-child{border:0}
+.code{font-size:24px;font-weight:900;letter-spacing:1px;color:#ff5967;word-break:break-word}.notice{padding:12px;border-radius:10px;background:#28151a;border:1px solid #64232d;color:#ffd9dd}.top-actions{display:flex;justify-content:space-between;gap:10px;align-items:center}footer{text-align:center;color:#777;font-size:12px;padding:20px}
+</style>
+</head>
+<body>
+<header><div class="wrap"><div class="brand">JM <span>DIÁRIO</span></div><div class="sub">COMPETIÇÃO • RESPEITO • PREMIAÇÃO</div></div></header>
+<main class="wrap">
+<section id="publicView" class="hidden">
+ <div class="panel"><span class="pill" id="pubStatus">DIÁRIO</span><h1 id="pubTitle">Carregando diário...</h1><div class="muted" id="pubDate"></div><h2 style="margin-top:20px">Regras</h2><div id="pubRules" style="white-space:pre-wrap"></div></div>
+ <div class="panel"><h2>Jogadores confirmados <span class="muted" id="playerCount"></span></h2><div id="publicPlayers"></div></div>
+ <div class="panel"><h2>Dados da sala</h2><div id="roomArea" class="muted">O código da sala será liberado pela organização no horário informado.</div></div>
+</section>
+<section id="loginView" class="panel hidden">
+ <h1>Painel administrativo</h1><p class="muted">Entre para gerenciar seus diários.</p><label>Senha administrativa</label><input id="password" type="password" placeholder="Sua senha"><button id="loginBtn">Entrar</button><p id="loginError" class="small"></p>
+</section>
+<section id="adminView" class="hidden">
+ <div class="top-actions"><div><h1>Painel JM Diário</h1><div class="muted">Gerencie todos os seus eventos em um só lugar.</div></div><button class="secondary" id="logoutBtn">Sair</button></div>
+ <div class="panel" style="margin-top:18px"><h2>Criar novo diário</h2><label>Nome do evento</label><input id="newTitle" placeholder="Ex.: Diário Brawl Stars 21:40"><label>Data e horário</label><input id="newDate" type="datetime-local"><label>Regras</label><textarea id="newRules" placeholder="Regras do evento..."></textarea><button id="createBtn">Criar diário</button><p id="createMsg" class="small"></p></div>
+ <div class="panel"><h2>Seus diários</h2><div id="diaryList" class="muted">Carregando...</div></div>
+</section>
+</main><footer>JM DIÁRIO • Todos os direitos reservados</footer>
+<script>
+const $=id=>document.getElementById(id);let password="",diaries=[];
+const show=id=>$(id).classList.remove("hidden"),hide=id=>$(id).classList.add("hidden");
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const dateFmt=s=>new Date(s).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});
+async function api(path,opts={}){const r=await fetch(path,{...opts,headers:{"Content-Type":"application/json",...(password?{"x-admin-password":password}:{}),...(opts.headers||{})}});let d={};try{d=await r.json()}catch{}if(!r.ok)throw new Error(d.error||"Não foi possível concluir.");return d}
+function start(){const token=new URLSearchParams(location.search).get("diario");if(token){show("publicView");loadPublic(token)}else{show("loginView")}}
+async function loadPublic(token){try{const d=await api("/api/diaries?token="+encodeURIComponent(token));$("pubTitle").textContent=d.diary.title;$("pubDate").textContent=dateFmt(d.diary.event_date);$("pubRules").textContent=d.diary.rules||"Nenhuma regra informada.";$("pubStatus").textContent=d.diary.status==="open"?"EVENTO":d.diary.status.toUpperCase();$("playerCount").textContent="("+d.participants.length+")";$("publicPlayers").innerHTML=d.participants.length?d.participants.map((p,i)=>'<div class="player"><span>'+(i+1)+'. '+esc(p.player_name)+'</span><span class="pill">CONFIRMADO</span></div>').join(""):'<p class="muted">Nenhum jogador confirmado ainda.</p>';if(d.diary.room_released&&d.diary.room_code){$("roomArea").innerHTML='<div class="notice">Sala liberada!</div><p class="small">CÓDIGO DA SALA</p><div class="code">'+esc(d.diary.room_code)+'</div>'+(d.diary.room_password?'<p class="small">SENHA</p><div class="code">'+esc(d.diary.room_password)+'</div>':'')}else{$("roomArea").textContent="O código da sala será liberado pela organização no horário informado."}}catch(e){$("pubTitle").textContent="Diário não encontrado";$("pubRules").textContent=e.message}}
+$("loginBtn").onclick=async()=>{password=$("password").value;try{await loadAdmin();hide("loginView");show("adminView")}catch(e){$("loginError").textContent=e.message;password=""}};
+$("logoutBtn").onclick=()=>{password="";hide("adminView");show("loginView")};
+async function loadAdmin(){diaries=await api("/api/diaries");renderDiaries()}
+function renderDiaries(){$("diaryList").innerHTML=diaries.length?diaries.map(d=>'<div class="diary"><div class="top-actions"><div><strong>'+esc(d.title)+'</strong><div class="small">'+dateFmt(d.event_date)+' • '+esc(d.status)+'</div></div><button class="secondary" onclick="openDiary(\\''+d.id+'\\')">Gerenciar</button></div><div class="small" style="margin-top:8px;word-break:break-all">Link de entrega: '+esc(location.origin+'/?diario='+d.access_token)+'</div><button class="secondary" style="margin-top:8px" onclick="copyLink(\\''+d.access_token+'\\')">Copiar link</button></div>').join(""):'<p class="muted">Você ainda não criou nenhum diário.</p>'}
+window.copyLink=token=>navigator.clipboard.writeText(location.origin+'/?diario='+token).then(()=>alert("Link copiado!")).catch(()=>alert(location.origin+'/?diario='+token));
+$("createBtn").onclick=async()=>{try{if(!$("newDate").value)throw new Error("Informe a data e o horário.");const d=await api("/api/diaries",{method:"POST",body:JSON.stringify({title:$("newTitle").value,event_date:new Date($("newDate").value).toISOString(),rules:$("newRules").value})});$("createMsg").textContent="Diário criado!";$("newTitle").value="";$("newRules").value="";await loadAdmin()}catch(e){$("createMsg").textContent=e.message}};
+window.openDiary=async id=>{const d=diaries.find(x=>x.id===id);if(!d)return;const name=prompt("Nome do jogador para adicionar (deixe vazio para não adicionar):");if(name){try{await api("/api/participants",{method:"POST",body:JSON.stringify({diary_id:id,player_name:name})});alert("Jogador adicionado!")}catch(e){alert(e.message)}}
+const code=prompt("Código da sala:",d.room_code||"");if(code===null)return;const pass=prompt("Senha da sala (opcional):",d.room_password||"");if(pass===null)return;const status=prompt("Status: open, closed ou finished",d.status)||d.status;try{await api("/api/diaries",{method:"PATCH",body:JSON.stringify({id,room_code:code,room_password:pass,status})});alert("Diário atualizado!");await loadAdmin()}catch(e){alert(e.message)}};
+start();
+</script>
+</body></html>
